@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>クソＢＯＴメーカーＷＥＢ版</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+	rel="stylesheet" />
+<link
+	href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+	rel="stylesheet" />
+<link href="../static/css/bootstrap-social.css"
+	th:href="@{/css/bootstrap-social.css}" rel="stylesheet" />
+<style type="text/css">
+a {
+	text-decoration: underline;
+}
+
+img.icon {
+	width: 128px;
+	height: 128px;
+	object-fit: cover;
+}
+</style>
+</head>
+<body>
+	<script
+		src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"
+		type="text/javascript"></script>
+	<script
+		src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"
+		type="text/javascript"></script>
+	<div class="container">
+		<div class="jumbotron">
+			<div>
+				<h2>
+					<a th:href="@{../BotOAuth}" href="/">クソＢＯＴメーカー</a>
+				</h2>
+			</div>
+				<form class="form form-group form-group-sm" th:action="@{modeAddForm}" th:object="${modeAddForm}" method="post" enctype="multipart/form-data">
+				<div class="panel panel-default">
+					<div class="panel-heading">モード追加</div>
+					<div class="panel-body">
+						<div class="list-group">
+							<div class="list-group-item" th:object="${modeAddForm}">
+								<div class="media-left">
+									<img class="icon list-group-item-text" th:src="*{icon}" alt="" src="" />
+									<input class="form-control" type="hidden" th:field="*{icon}" />
+									<input class="form-control" type="hidden" th:field="*{id}" />
+									<input class="form-control" type="hidden" th:field="*{botId}" />
+								</div>
+								<div class="media-body">
+									<label>モード名</label><input class="form-control" type="text" th:field="*{modeName}" />
+									<label>モード検索条件</label><input class="form-control" type="text" th:field="*{modeType}" />
+									<label>Bot名</label><input class="form-control" type="text" th:field="*{userName}" />
+									<label>URL</label><input class="form-control" type="text" th:field="*{userUrl}" />
+									<label>現在地</label><input class="form-control" type="text" th:field="*{userLocation}" />
+									<label>自己紹介</label><textarea class="form-control" th:field="*{userDescription}" cols="" rows=""></textarea>
+									<label>アイコン</label> <input type="file" th:field="*{iconFile}" />
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="panel-footer">
+						<button type="submit" class="btn btn-twitter">
+							追加する
+						</button>
+					</div>
+				</div>
+
+			</form>
+
+			<form class="form form-group form-group-sm" th:action="@{updateMode}" th:object="${modesForm}" method="post" enctype="multipart/form-data">
+				<div class="panel panel-default">
+				<div class="panel-heading">モード一覧</div>
+				<div class="panel-body">
+				<div class="list-group">
+						<div class="list-group-item" th:each="modes, stat : ${modesForm.modes}" th:object="${modesForm.modes[__${stat.index}__]}">
+							<div class="media-left">
+								<img class="icon" th:src="*{icon}" alt="" src="" />
+								<input class="form-control" type="hidden" th:field="*{icon}" />
+								<input class="form-control" type="hidden" th:field="*{id}" />
+								<input class="form-control" type="hidden" th:field="*{botId}" />
+							</div>
+							<div class="media-body">
+								<label>モード名</label><input class="form-control" type="text" th:field="*{modeName}" />
+								<label>モード検索条件</label><input class="form-control" type="text" th:field="*{modeType}" />
+								<label>Bot名</label><input class="form-control" type="text" th:field="*{userName}" />
+								<label>URL</label><input class="form-control" type="text" th:field="*{userUrl}" />
+								<label>現在地</label><input class="form-control" type="text" th:field="*{userLocation}" />
+								<label>自己紹介</label><textarea class="form-control" th:field="*{userDescription}" cols="" rows=""></textarea>
+								<label>アイコン</label> <input type="file" th:field="*{iconFile}" />
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="panel-footer">
+					<button type="submit" class="btn btn-twitter">
+						更新する
+					</button>
+				</div>
+				</div>
+				</form>
+
+			<div>
+				作った人：<a href="https://twitter.com/Chupacabras_MON">悶絶チュパカブラ
+				<span class="fa fa-twitter fa-spin"></span></a>
+			</div>
+		</div>
+	</div>
+</body>
+
+</html>
