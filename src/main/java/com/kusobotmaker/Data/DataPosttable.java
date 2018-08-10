@@ -12,9 +12,9 @@ import javax.persistence.Table;
 
 import lombok.Data;
 
+@Data
 @Entity
 @Table(name = "posttable")
-@Data
 public class DataPosttable {
 	public DataPosttable() {
 		super();

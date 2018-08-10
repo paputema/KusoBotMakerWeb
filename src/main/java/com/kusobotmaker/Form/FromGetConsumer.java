@@ -7,7 +7,6 @@ import javax.validation.Valid;
 
 import lombok.Data;
 
-@SuppressWarnings("serial")
 @Data
 public class FromGetConsumer implements Serializable
 {

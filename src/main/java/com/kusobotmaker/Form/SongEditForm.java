@@ -10,7 +10,6 @@ import com.kusobotmaker.Data.DataSongText;
 
 import lombok.Data;
 
-@SuppressWarnings("serial")
 @Data
 public
 class SongEditForm implements Serializable

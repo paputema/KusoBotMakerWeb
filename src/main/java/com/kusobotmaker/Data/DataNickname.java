@@ -2,46 +2,41 @@ package com.kusobotmaker.Data;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
+import lombok.Data;
+import twitter4j.User;
+
 @Entity
 @Table(name = "nickname")
+@Data
 public class DataNickname {
 
 	@Id
 	@Column
-	Long id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 	@Column(name="bot_id")
-	Long botId;
+	final private Long botId;
 	@Column(name="friends_id")
-	Long friendsId;
+	final private Long friendsId;
 	@Column(name="nickname")
-	String nickName;
-	public Long getId() {
-		return id;
+	private String nickName;
+	
+	public DataNickname() {
+		super();
+		this.botId = 0L;
+		this.friendsId = 0l;
 	}
-	public void setId(Long id) {
-		this.id = id;
-	}
-	public Long getBotId() {
-		return botId;
-	}
-	public void setBotId(Long botId) {
+	public DataNickname(Long botId, User friends) {
+		super();
 		this.botId = botId;
+		this.friendsId = friends.getId();
+		this.nickName = friends.getName();
 	}
-	public Long getFriendsId() {
-		return friendsId;
-	}
-	public void setFriendsId(Long friendsId) {
-		this.friendsId = friendsId;
-	}
-	public String getNickName() {
-		return nickName;
-	}
-	public void setNickName(String nickName) {
-		this.nickName = nickName;
-	}
-
+	
 
 }

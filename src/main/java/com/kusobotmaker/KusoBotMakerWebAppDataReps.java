@@ -30,6 +30,8 @@ import com.kusobotmaker.Form.FromSongTextSort;
 import com.kusobotmaker.repositories.DataAccountModeRepositories;
 import com.kusobotmaker.repositories.DataBotAccountLastIdRepositories;
 import com.kusobotmaker.repositories.DataBotAccountRepositories;
+import com.kusobotmaker.repositories.DataFollowRequestRepositories;
+import com.kusobotmaker.repositories.DataGlobalSearchRepositories;
 import com.kusobotmaker.repositories.DataLogtRepositories;
 import com.kusobotmaker.repositories.DataNicknameRepositories;
 import com.kusobotmaker.repositories.DataPosttableRepositories;
@@ -69,6 +71,14 @@ public class KusoBotMakerWebAppDataReps {
 	public DataSongListRepositories dataSongListRepositories;
 	@Getter
 	private Set<DataBotAccount> failedBotAccount = new HashSet<DataBotAccount>();
+	@Autowired
+	public DataFollowRequestRepositories dataFollowRequestRepositories;  
+	@Autowired
+	public DataGlobalSearchRepositories globalSearchRepositories;
+	
+	@Value("${api.domain}")
+	@Getter
+	private String url;
 	@Getter
 	@Value("${kbm.debug}")
 	private Boolean debug = false;
@@ -129,7 +139,9 @@ public class KusoBotMakerWebAppDataReps {
 		query.setParameter("bot_id", dataBotAccount.getBot_id());
 
 		SimpleDateFormat dateFormatModeType01 = new SimpleDateFormat("MMdd");
-		SimpleDateFormat dateFormatModeType02 = new SimpleDateFormat("MMWE");
+		//SimpleDateFormat dateFormatModeType02 = new SimpleDateFormat("MMWE");
+		//Wだと何週目、Fで何回目の曜日か？
+		SimpleDateFormat dateFormatModeType02 = new SimpleDateFormat("MMFE");
 		Date date = new Date();
 		//:mode_type1 MMDD
 		query.setParameter("mode_type1", dateFormatModeType01.format(date));

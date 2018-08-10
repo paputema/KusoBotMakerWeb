@@ -2,6 +2,7 @@ package com.kusobotmaker;
 
 import java.io.File;
 import java.net.URL;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -20,12 +21,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.PreDestroy;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import com.kusobotmaker.Data.DataAccountMode;
 import com.kusobotmaker.Data.DataBotAccount;
 import com.kusobotmaker.Data.DataBotAccountLastId;
+import com.kusobotmaker.Data.DataFollowRequest;
+import com.kusobotmaker.Data.DataGlobalSearch;
 import com.kusobotmaker.Data.DataLog;
 import com.kusobotmaker.Data.DataNickname;
 import com.kusobotmaker.Data.DataPosttable;
@@ -33,6 +35,9 @@ import com.kusobotmaker.Data.DataSongText;
 
 import lombok.Getter;
 import twitter4j.Paging;
+import twitter4j.Query;
+import twitter4j.Query.ResultType;
+import twitter4j.QueryResult;
 import twitter4j.RateLimitStatus;
 import twitter4j.Relationship;
 import twitter4j.ResponseList;
@@ -50,15 +55,22 @@ public class Bot{
 	@PreDestroy
 	private void destroy()
 	{
-		if(!execOnstatus.isShutdown())
-		{
-			execOnstatus.shutdownNow();
-		}
-		if(!execStatusPost.isShutdown())
-		{
-			execStatusPost.shutdownNow();
+		shutdown(execOnstatus);
+		shutdown(execStatusPost);
+		shutdown(execGlobalSearchPost);
+	}
+	private void shutdown(ExecutorService exex)
+	{
+		exex.shutdown();
+		try {
+			exex.awaitTermination(60, TimeUnit.MINUTES);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			exex.shutdownNow();
 		}
 	}
+
+
 
 	public void delete() {
 		reps.deleteBot(this);
@@ -78,10 +90,16 @@ public class Bot{
 	private RateLimitStatus rateLimitStatusHomeTimeLine;
 	private RateLimitStatus rateLimitStatusMentionsTimeLine;
 	private DataBotAccountLastId lastId;
-
+	@Getter
+	private DataFollowRequest followRequest;
+	public void setFollowRequest(DataFollowRequest followRequest) {
+		this.followRequest = followRequest;
+		reps.dataFollowRequestRepositories.saveAndFlush(this.followRequest);
+	}
 	private Date lastNomalPostTime = new Date(0);
-	static private ExecutorService execOnstatus = Executors.newCachedThreadPool();
-	static private ScheduledExecutorService execStatusPost = Executors.newSingleThreadScheduledExecutor();
+	final private  ExecutorService execOnstatus = Executors.newCachedThreadPool();
+	final private  ScheduledExecutorService execStatusPost = Executors.newSingleThreadScheduledExecutor();
+	final private  ExecutorService execGlobalSearchPost = Executors.newFixedThreadPool(1);
 	private User botUser;
 
 	@Getter
@@ -93,7 +111,10 @@ public class Bot{
 	private String botName;
 	@Getter
 	private Long botId;
-
+	public Boolean isPause()
+	{
+		return pause.isPause();
+	}
 	private Pause pause = new Pause();
 	class Pause{
 		private boolean pauseFlag = false;
@@ -154,17 +175,23 @@ public class Bot{
 		builder.setOAuthAccessTokenSecret(dataBotAccount.getAccess_Token_Secret());
 		this.twitter = new TwitterFactory(builder.build()).getInstance();
 		this.dataBotAccount = dataBotAccount;
-		
+		this.followRequest = reps.dataFollowRequestRepositories.findOne(this.dataBotAccount.getBot_id());
+		if(followRequest == null)
+		{
+			followRequest = new DataFollowRequest(dataBotAccount.getBot_id());
+			reps.dataFollowRequestRepositories.saveAndFlush(followRequest);
+		}
+
 		try {
 			updateBotUser();
-			DataBotAccountLastId optLastId = reps.dataBotAccountLastIdRepositories.findOne(dataBotAccount.getBot_id()); 
+			DataBotAccountLastId optLastId = reps.dataBotAccountLastIdRepositories.findOne(dataBotAccount.getBot_id());
 			if(optLastId != null)
 			{
 				this.lastId = optLastId;
 			}else
 			{
 				this.lastId = new DataBotAccountLastId(dataBotAccount.getBot_id(),botUser.getStatus());
-			} 
+			}
 			dataBotAccount.setBot_enable(true);
 			modeUpdate();
 			reps.delFailedBotAccount(dataBotAccount);
@@ -185,6 +212,7 @@ public class Bot{
 			BotsScheduler.LOG.debug("TL取得開始:" + dataBotAccount.getBot_id());
 			getHomeTimeLine();
 			getMentionsTimeLine();
+			getGlobalSearchTimeLine();
 			BotsScheduler.LOG.debug("TL取得終了:" + dataBotAccount.getBot_id());
 			dataBotAccount.setBot_enable(true);
 		}
@@ -308,8 +336,8 @@ public class Bot{
 			twitter.createFriendship(id);
 		}
 	}
-	
-	
+
+
 	class UpdateStatus implements Callable<Status>
 	{
 		public UpdateStatus(Bot bot, String post,DataPosttable dataPosttable,Status status) {
@@ -538,8 +566,91 @@ public class Bot{
 
 
 
+	private RateLimitStatus rateLimitStatusHomeTimeLineGlobalSearch = null;
+	private void getGlobalSearchTimeLine()
+	{
+		for (DataGlobalSearch globalSearch : reps.globalSearchRepositories.findAllByBotIdOrderByLastUseAsc(this.botId)) {
+			Pattern pattern = Pattern.compile(globalSearch.getRegtext(), Pattern.MULTILINE | Pattern.DOTALL);
+			if(checkRateLimit(rateLimitStatusHomeTimeLineGlobalSearch))
+			{
+				Query query = new Query();
+				query.setQuery(globalSearch.getSearchstr() +  " AND exclude:retweets");
+				query.setResultType(ResultType.recent);
+				query.setCount(100);
+				if(globalSearch.getSinceid().compareTo((long) 0) > 0)
+				{
+					query.setSinceId(globalSearch.getSinceid());
+				}
+				QueryResult queryResult = null;
+				do {
+					try {
+						if(queryResult != null)
+						{
+							query = queryResult.nextQuery();
+						}
+						queryResult = twitter.search(query);
+						rateLimitStatusHomeTimeLineGlobalSearch = queryResult.getRateLimitStatus();
+						for (Status status : queryResult.getTweets()) {
+							globalSearch.setSinceid(Long.max(status.getId(),globalSearch.getSinceid()));
+							execGlobalSearchPost.execute(new Runnable() {
+								@Override
+								public void run() {
+									if(getBotId().equals(status.getUser().getId()) == false) {
+										Matcher matcher = pattern.matcher(status.getText());
+										String postStr = globalSearch.getPosttext();
+										if(matcher.find())
+										{
+											if(globalSearch.getFav() == true)
+											{
+												try {
+													twitter.createFavorite(status.getId());
+												} catch (TwitterException e) {
+													onTwitterException(e);
+												}
+											}
+											if(globalSearch.getRt() == true)
+											{
+												try {
+													twitter.retweetStatus(status.getId());
+												} catch (TwitterException e) {
+													onTwitterException(e);
+												}
+											}
+											if(postStr != null && postStr.length() > 0)
+											{
+												for (int i = 0; i < matcher.groupCount(); i++) {
+													if (matcher.group(i) != null) {
+														postStr = postStr.replaceAll("#group_" + i + "#", matcher.group(i));
+													}
+												}
+												postStr = postStr.replaceAll("#group_[0-9]*#", "");
+												postStr = postStr.replaceAll("@[a-zA-Z0-9_ ]+", "");
+												postStr = postStr.replaceAll("#qt#", " https://twitter.com/-/status/" + status.getId());
 
 
+												try {
+													twitter.updateStatus(new StatusUpdate(postStr));
+												} catch (TwitterException e) {
+													onTwitterException(e);
+												}
+											}
+										}
+									}
+								}
+							});
+
+						}
+					} catch (TwitterException e) {
+						// TODO Auto-generated catch block
+						onTwitterException(e);
+					}
+				}while(queryResult != null && queryResult.hasNext() && checkRateLimit(rateLimitStatusHomeTimeLineGlobalSearch));
+				globalSearch.setLastUse(new Timestamp(new Date().getTime()));
+				reps.globalSearchRepositories.save(globalSearch);
+			}
+		}
+		reps.globalSearchRepositories.flush();
+	}
 	private void getHomeTimeLine() {
 		if(checkRateLimit(rateLimitStatusHomeTimeLine))
 		{
@@ -582,6 +693,18 @@ public class Bot{
 					for (Status status : statusList) {
 						onStatus( status );
 
+						if(patternMatch(followRequest.getFollowRequestText() ,status.getText()))
+						{
+							createFriendship(status.getUser().getId());
+						}
+						if(patternMatch(followRequest.getRemoveRequestText(),status.getText()))
+						{
+							destroyFriendship(status.getUser().getId());
+						}
+						if(patternMatch(followRequest.getNicknameRequestText(), status.getText()))
+						{
+							setNickname(status);
+						}
 						BotsScheduler.LOG.debug(twitter.getScreenName()  + ":" + status.getUser().getName() + "「" + status.getText() + "」");
 						lastId.setSinceIdStatusMentionsTimeLine(Long.max(lastId.getSinceIdStatusMentionsTimeLine() , new Long(status.getId())));
 					}
@@ -593,7 +716,30 @@ public class Bot{
 		}
 		reps.dataBotAccountLastIdRepositories.saveAndFlush(lastId);
 	}
-
+	private boolean patternMatch(String pattern,String target)
+	{
+		Pattern p = Pattern.compile(pattern);
+		return p.matcher(target).find();
+	}
+	private void destroyFriendship(long userId) throws TwitterException
+	{
+		if(twitter.showFriendship(twitter.getId(), userId).isSourceFollowingTarget())
+		{
+			twitter.destroyFriendship(userId);
+		}
+	}
+	private void setNickname(Status status)
+	{
+		Pattern p = Pattern.compile(followRequest.getNicknameRequestText());
+		String newNickname = p.matcher(status.getText()).group(followRequest.getNicknameGroupNum().intValue());
+		DataNickname dataNickname = reps.dataNicknameRepositories.findTopByBotIdAndFriendsId(botId, status.getUser().getId());
+		if(dataNickname == null)
+		{
+			dataNickname = new DataNickname(botId,status.getUser());
+		}
+		dataNickname.setNickName(newNickname);
+		reps.dataNicknameRepositories.saveAndFlush(dataNickname);
+	}
 
 	boolean checkRateLimit(RateLimitStatus rateLimitStatus) {
 		if(rateLimitStatus != null){
@@ -627,7 +773,8 @@ public class Bot{
 		if(mode != null && !reps.getDebug())
 		{
 			try {
-				twitter.updateProfile(mode.getUserName(),mode.getUserUrl(),mode.getUserLocation() ,mode.getUserDescription());
+				getUserDescription();
+				twitter.updateProfile(mode.getUserName(),mode.getUserUrl(),mode.getUserLocation() ,mode.getUserDescription() + followRequest.getUserDescription());
 				File icon = mode.getIconToFile();
 				if(icon != null && icon.length() > 0)
 				{
@@ -648,6 +795,23 @@ public class Bot{
 			}
 		}
 	}
+
+	private String getUserDescription()
+	{
+		String ret = "";
+		if(getOwnerId().equals(botId) == false)
+		{
+			User owner;
+			try {
+				owner = showUser(getOwnerId());
+				ret = "bot作者:@" + owner.getScreenName() + " " + reps.getUrl() ;
+			} catch (TwitterException e) {
+			}
+		}
+		return ret;
+	}
+
+
 	private void onException(Exception e) {
 		// TODO 自動生成されたメソッド・スタブ
 		reps.dataLogtRepositories.saveAndFlush(new DataLog(dataBotAccount.getBot_id(), -1, e.getMessage()));
@@ -687,4 +851,6 @@ public class Bot{
 		// TODO 自動生成されたメソッド・スタブ
 		return botName + "(" + botScreenName + "/" + botId + ")";
 	}
+
+
 }

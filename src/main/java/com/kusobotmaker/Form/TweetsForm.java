@@ -8,7 +8,6 @@ import javax.validation.Valid;
 import com.kusobotmaker.Data.DataPosttable;
 
 import lombok.Data;
-@SuppressWarnings("serial")
 @Data
 public class TweetsForm implements Serializable
 {
