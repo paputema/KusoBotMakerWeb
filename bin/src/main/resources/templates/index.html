@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>クソＢＯＴメーカーＷＥＢ版</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link
+	href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+	rel="stylesheet" />
+<link
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+	rel="stylesheet" />
+<link href="../static/css/bootstrap-social.css"
+	th:href="@{/css/bootstrap-social.css}" rel="stylesheet" />
+<style type="text/css">
+a {
+	text-decoration: underline;
+}
+</style>
+<script async="async" src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<script>
+  (adsbygoogle = window.adsbygoogle || []).push({
+    google_ad_client: "ca-pub-9479292374330448",
+    enable_page_level_ads: true
+  });
+</script>
+</head>
+<body>
+	<script
+		src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"
+		type="text/javascript"></script>
+	<script
+		src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"
+		type="text/javascript"></script>
+	<div class="container">
+		<div class="jumbotron">
+			<div>
+
+				<h2>
+					<a th:href="@{/}" href="/">クソＢＯＴメーカー</a>
+				</h2>
+				TwitterのBotを作れるWebアプリです。タイトルとは裏腹に機能は多め、現在試験稼働中でしってる人にだけ解放中、使ってみたい方は<a href="https://twitter.com/Chupacabras_MON">作者<span
+					class="fa fa-twitter"></span></a>に連絡を。
+			</div>
+						<div class="row">
+				<div class="col-xs-12 col-sm-6 col-md-4 col-lg-4 col-xl-4">
+					<a th:href="@{/userlogin}"  href="/userlogi" class="btn btn-block btn-social btn-twitter"> <span class="fa fa-twitter"></span><span>ツイッターでログイン</span></a>
+					<br/>↑Botにするアカウントでなく管理者用に自分のアカウントでログインします
+				</div>
+				<div class="alert alert-danger alert-dismissible" role="alert" th:if="${error}">
+					<button type="button" class="close" data-dismiss="alert" aria-label="閉じる"><span aria-hidden="true">×</span></button>
+					<strong>失敗：</strong><span th:text= "${error}">error</span>
+				</div>
+			</div>
+
+			<div>
+				作った人：<a href="https://twitter.com/Chupacabras_MON">悶絶チュパカブラ<span
+					class="fa fa-twitter"></span></a>
+			</div>
+		</div>
+	</div>
+</body>
+
+</html>

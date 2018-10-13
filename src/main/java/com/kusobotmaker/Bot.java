@@ -21,8 +21,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.PreDestroy;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import com.kusobotmaker.Data.DataAccountMode;
 import com.kusobotmaker.Data.DataBotAccount;
 import com.kusobotmaker.Data.DataBotAccountLastId;
@@ -664,10 +666,11 @@ public class Bot{
 					}
 					statusList = twitter.getHomeTimeline(paging);
 					for (Status status : statusList) {
+						lastId.setSinceIdHomeTimeLine(Long.max(lastId.getSinceIdHomeTimeLine() , Long.valueOf(status.getId())));
 						onStatus(status);
 
 						BotsScheduler.LOG.debug(twitter.getScreenName()  + ":" + status.getUser().getName() + "「" + status.getText() + "」");
-						lastId.setSinceIdHomeTimeLine(Long.max(lastId.getSinceIdHomeTimeLine() , Long.valueOf(status.getId())));
+
 					}
 					rateLimitStatusHomeTimeLine = statusList.getRateLimitStatus();
 				} catch (TwitterException e) {
@@ -691,6 +694,7 @@ public class Bot{
 					}
 					statusList = twitter.getMentionsTimeline(paging);
 					for (Status status : statusList) {
+						lastId.setSinceIdStatusMentionsTimeLine(Long.max(lastId.getSinceIdStatusMentionsTimeLine() , new Long(status.getId())));
 						onStatus( status );
 
 						if(patternMatch(followRequest.getFollowRequestText() ,status.getText()))
@@ -706,7 +710,6 @@ public class Bot{
 							setNickname(status);
 						}
 						BotsScheduler.LOG.debug(twitter.getScreenName()  + ":" + status.getUser().getName() + "「" + status.getText() + "」");
-						lastId.setSinceIdStatusMentionsTimeLine(Long.max(lastId.getSinceIdStatusMentionsTimeLine() , new Long(status.getId())));
 					}
 					rateLimitStatusMentionsTimeLine = statusList.getRateLimitStatus();
 				} catch (TwitterException e) {
@@ -774,7 +777,12 @@ public class Bot{
 		{
 			try {
 				getUserDescription();
-				twitter.updateProfile(mode.getUserName(),mode.getUserUrl(),mode.getUserLocation() ,mode.getUserDescription() + followRequest.getUserDescription());
+				String des = mode.getUserDescription() + followRequest.getUserDescription();
+				if(des.length() > 160 )
+				{
+					des = mode.getUserDescription();
+				}
+				twitter.updateProfile(mode.getUserName(),mode.getUserUrl(),mode.getUserLocation() ,des);
 				File icon = mode.getIconToFile();
 				if(icon != null && icon.length() > 0)
 				{
@@ -852,5 +860,25 @@ public class Bot{
 		return botName + "(" + botScreenName + "/" + botId + ")";
 	}
 
+	//アカウントが生きているか確認
+	public boolean isUser() {
+		// TODO 自動生成されたメソッド・スタブ
+		boolean ret = false;
+
+		if(this.botUser != null)
+		{
+			ret = true;
+		}else
+		{
+			try {
+				this.botUser = this.twitter.verifyCredentials();
+				ret = true;
+			} catch (TwitterException e) {
+				// TODO 自動生成された catch ブロック
+				//e.printStackTrace();
+			}
+		}
+		return ret;
+	}
 
 }

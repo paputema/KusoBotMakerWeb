@@ -111,7 +111,7 @@ public class BotsScheduler {
 
 	}
 
-	@Scheduled(initialDelay = 15 * 60 * 1000, fixedRate = 10 * 60 * 1000)
+	@Scheduled(initialDelay = 15 * 60 * 1000, fixedDelay = 10 * 60 * 1000)
 	private void normalPostCron()
 	{
 		if(!debug)
@@ -145,25 +145,28 @@ public class BotsScheduler {
 				}
 			}
 			list = null;
-			System.gc();
 			LOG.info("通常ツイート終了");
 		}
 	}
-	@Scheduled(initialDelay = 5 * 60 * 1000, fixedRate = 1 * 60 * 1000)
+	@Scheduled(initialDelay = 5 * 60 * 1000, fixedDelay =  1 * 1000)
 	private void replyPostCron()   {
 		if (!debug) {
 			LOG.info("リプライツイート開始");
 			List<Future<?>> list = new ArrayList<Future<?>>();
 			for (final Bot bot : kusoBotMakerWebAppDataReps.getBots()) {
-				list.add(exec.submit(new Runnable() {
-					@Override
-					public void run() {
-						if(bot.isPause() == false)
-						{
-							bot.replyPost();
-						}
+					if(bot.isUser())
+					{
+						list.add(exec.submit(new Runnable() {
+
+							@Override
+							public void run() {
+								if(bot.isPause() == false)
+								{
+									bot.replyPost();
+								}
+							}
+						}));
 					}
-				}));
 
 			}
 			for (Future<?> future : list) {
@@ -175,7 +178,6 @@ public class BotsScheduler {
 				}
 			}
 			list = null;
-			System.gc();
 			LOG.info("リプライツイート終了");
 		}
 	}

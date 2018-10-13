@@ -4,13 +4,19 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import com.kusobotmaker.Bot;
-import lombok.Getter;
-import lombok.Setter;
 
+import lombok.Data;
+
+
+@Data
 public class FromComboBot {
+
+	private Long botId;
+	private String botName;
+
 	public FromComboBot(Bot bot) {
-		botId = bot.getBotId() ;
-		botName = bot.getBotName();
+		this.botId = bot.getBotId() ;
+		this.botName = bot.getBotName();
 	}
 	public static Collection<FromComboBot> getComboBotList(Collection<Bot> bots)
 	{
@@ -21,11 +27,4 @@ public class FromComboBot {
 
 		return retComboBots;
 	}
-
-	@Setter
-	@Getter
-	private Long botId;
-	@Setter
-	@Getter
-	private String botName;
 }
