@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>クソＢＯＴメーカーＷＥＢ版</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"	rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-social/5.1.1/bootstrap-social.css" rel="stylesheet" />
+<style type="text/css">
+a {
+	text-decoration: underline;
+}
+</style>
+</head>
+<body>
+	<script
+		src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"
+		type="text/javascript"></script>
+	<script
+		src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"
+		type="text/javascript"></script>
+	<div class="container">
+		<div class="jumbotron">
+			<div>
+				<h2>
+					<a th:href="@{../BotOAuth}" href="/">クソＢＯＴメーカー</a>
+				</h2>
+			</div>
+				<form class="form form-group form-group-sm" th:action="@{updateSetting}" th:object="${updateSettingForm}" method="post" enctype="multipart/form-data">
+				<div class="panel panel-default">
+					<div class="panel-heading">設定</div>
+						<div class="panel-body" th:object="${updateSettingForm}">
+							<div class="media-body">
+								<input type="hidden" th:field="*{dataFollowRequest.botId}" />
+								<label>フォローリクエスト</label><input class="form-control" type="text" th:field="*{dataFollowRequest.followRequestText}" />
+								<label>フォロー解除リクエスト</label><input class="form-control" type="text" th:field="*{dataFollowRequest.removeRequestText}" />
+								<label>ニックネームリクエスト（リプライ時に#user_name#で置き換える名前を保存する、正規表現を使うため変更は上級者向け）</label><input class="form-control" type="text" th:field="*{dataFollowRequest.nicknameRequestText}" />
+								<label>ニックネームリクエスト読み込み時のグループ（何番目の括弧をニックネームとして保存するか）</label> <input class="form-control" type="number" min="0" th:field="*{dataFollowRequest.nicknameGroupNum}" />
+							</div>
+						</div>
+					<div class="panel-footer">
+						<button type="submit" class="btn btn-twitter">
+							更新する
+						</button>
+					</div>
+				</div>
+
+			</form>
+
+			<div>
+				作った人：<a href="https://twitter.com/Chupacabras_MON">悶絶チュパカブラ
+				<span class="fa fa-twitter fa-spin"></span></a>
+			</div>
+		</div>
+	</div>
+</body>
+
+</html>

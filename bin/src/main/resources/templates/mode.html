@@ -3,14 +3,9 @@
 <head>
 <title>クソＢＯＴメーカーＷＥＢ版</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<link
-	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
-	rel="stylesheet" />
-<link
-	href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
-	rel="stylesheet" />
-<link href="../static/css/bootstrap-social.css"
-	th:href="@{/css/bootstrap-social.css}" rel="stylesheet" />
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"	rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-social/5.1.1/bootstrap-social.css" rel="stylesheet" />
 <style type="text/css">
 a {
 	text-decoration: underline;
@@ -40,27 +35,23 @@ img.icon {
 				<form class="form form-group form-group-sm" th:action="@{modeAddForm}" th:object="${modeAddForm}" method="post" enctype="multipart/form-data">
 				<div class="panel panel-default">
 					<div class="panel-heading">モード追加</div>
-					<div class="panel-body">
-						<div class="list-group">
-							<div class="list-group-item" th:object="${modeAddForm}">
-								<div class="media-left">
-									<img class="icon list-group-item-text" th:src="*{icon}" alt="" src="" />
-									<input class="form-control" type="hidden" th:field="*{icon}" />
-									<input class="form-control" type="hidden" th:field="*{id}" />
-									<input class="form-control" type="hidden" th:field="*{botId}" />
-								</div>
-								<div class="media-body">
-									<label>モード名</label><input class="form-control" type="text" th:field="*{modeName}" />
-									<label>モード検索条件</label><input class="form-control" type="text" th:field="*{modeType}" />
-									<label>Bot名</label><input class="form-control" type="text" th:field="*{userName}" />
-									<label>URL</label><input class="form-control" type="text" th:field="*{userUrl}" />
-									<label>現在地</label><input class="form-control" type="text" th:field="*{userLocation}" />
-									<label>自己紹介</label><textarea class="form-control" th:field="*{userDescription}" cols="" rows=""></textarea>
-									<label>アイコン</label> <input type="file" th:field="*{iconFile}" />
-								</div>
+						<div class="panel-body" th:object="${modeAddForm}">
+							<div class="media-left">
+								<img class="icon list-group-item-text" th:src="*{icon}" alt="" src="" />
+								<input class="form-control" type="hidden" th:field="*{icon}" />
+								<input class="form-control" type="hidden" th:field="*{id}" />
+								<input class="form-control" type="hidden" th:field="*{botId}" />
+							</div>
+							<div class="media-body">
+								<label>モード名</label><input class="form-control" type="text" th:field="*{modeName}" />
+								<label>モード検索条件</label>「MMDD」の形式で日付を入力することでその日限定の設定に変更できます（例：「0123」で1月13日、「__29」で毎日29日等も可能、「w052日」で5月の第2日曜日（母の日）という設定も可能）<input class="form-control" type="text" th:field="*{modeType}" />
+								<label>Bot名</label><input class="form-control" type="text" th:field="*{userName}" />
+								<label>URL</label><input class="form-control" type="text" th:field="*{userUrl}" />
+								<label>現在地</label><input class="form-control" type="text" th:field="*{userLocation}" />
+								<label>自己紹介</label><textarea class="form-control" th:field="*{userDescription}" cols="" rows=""></textarea>
+								<label>アイコン</label> <input type="file" th:field="*{iconFile}" />
 							</div>
 						</div>
-					</div>
 					<div class="panel-footer">
 						<button type="submit" class="btn btn-twitter">
 							追加する
@@ -72,9 +63,8 @@ img.icon {
 
 			<form class="form form-group form-group-sm" th:action="@{updateMode}" th:object="${modesForm}" method="post" enctype="multipart/form-data">
 				<div class="panel panel-default">
-				<div class="panel-heading">モード一覧</div>
-				<div class="panel-body">
-				<div class="list-group">
+					<div class="panel-heading">モード一覧</div>
+					<div class="list-group">
 						<div class="list-group-item" th:each="modes, stat : ${modesForm.modes}" th:object="${modesForm.modes[__${stat.index}__]}">
 							<div class="media-left">
 								<img class="icon" th:src="*{icon}" alt="" src="" />
@@ -93,12 +83,11 @@ img.icon {
 							</div>
 						</div>
 					</div>
-				</div>
-				<div class="panel-footer">
-					<button type="submit" class="btn btn-twitter">
-						更新する
-					</button>
-				</div>
+					<div class="panel-footer">
+						<button type="submit" class="btn btn-twitter">
+							更新する
+						</button>
+					</div>
 				</div>
 				</form>
 

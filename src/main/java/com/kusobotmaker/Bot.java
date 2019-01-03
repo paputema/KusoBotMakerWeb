@@ -79,6 +79,11 @@ public class Bot{
 	}
 
 	private Twitter twitter;
+	public String getConsumer_Key() {
+		return dataBotAccount.getConsumer_Key();
+	}
+
+
 	private DataBotAccount dataBotAccount;
 	public Boolean equalsDataBotAccount(DataBotAccount dataBotAccount) {
 		return (this.dataBotAccount.getBot_id().equals(dataBotAccount.getBot_id()) &&
@@ -195,14 +200,15 @@ public class Bot{
 				this.lastId = new DataBotAccountLastId(dataBotAccount.getBot_id(),botUser.getStatus());
 			}
 			dataBotAccount.setBot_enable(true);
+			dataBotAccount.setBot_screen_name(this.twitter.getScreenName());
 			modeUpdate();
 			reps.delFailedBotAccount(dataBotAccount);
+			reps.dataBotAccountRepositories.saveAndFlush(dataBotAccount);
 		} catch (TwitterException e) {
 			onTwitterException(e);
 			BotsScheduler.LOG.info(e.getErrorMessage() + ":" + e.getErrorCode());
 			dataBotAccount.setBot_enable(false);
 			this.lastId = new DataBotAccountLastId(dataBotAccount.getBot_id(),null);
-			reps.dataBotAccountRepositories.saveAndFlush(dataBotAccount);
 			reps.addFailedBotAccount(dataBotAccount);
 		}
 

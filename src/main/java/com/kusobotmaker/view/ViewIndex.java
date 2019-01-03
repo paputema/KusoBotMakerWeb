@@ -1,14 +1,11 @@
 package com.kusobotmaker.view;
 import java.util.HashSet;
-import java.util.Locale;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -18,8 +15,8 @@ import com.kusobotmaker.Bot;
 import com.kusobotmaker.BotsScheduler;
 import com.kusobotmaker.KusoBotMakerWebAppDataReps;
 import com.kusobotmaker.KusoBotMakerWebAppUsers;
-import com.kusobotmaker.Form.Consumer;
 import com.kusobotmaker.KusoBotMakerWebAppUsers.KbmUser;
+import com.kusobotmaker.Form.Consumer;
 
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
@@ -79,7 +76,7 @@ public class ViewIndex {
 	public ModelAndView userLogin(ModelAndView mav) {
 		setDefaultObjectBySession(mav);
 		try {
-			mav.addObject("force_login", true);
+			//mav.addObject("force_login", true);
 			ConfigurationBuilder builder = new ConfigurationBuilder();
 			OAuthAuthorization oauth = new OAuthAuthorization(builder.build());
 			String callbackURL = domain +"accessTokenUser";
@@ -125,15 +122,14 @@ public class ViewIndex {
 		return mav;
 	}
 	@RequestMapping(value ="requestTokenBot", method = RequestMethod.POST)
-	public ModelAndView releaseRequestToken(@Validated Consumer consumer, BindingResult result, Locale locale, ModelAndView mav) {
+	public ModelAndView releaseRequestToken(ModelAndView mav) {
 
 
 		try {
 			setDefaultObjectBySession(mav);
 			mav.addObject("force_login", true);
-			OAuthAuthorization oauth = createOAuthAuthorization();
-			oauth.setOAuthConsumer(consumer.getConsumerKey(),consumer.getConsumerSecret());
-			session.setAttribute("consumers", consumer);
+			ConfigurationBuilder builder = new ConfigurationBuilder();
+			OAuthAuthorization oauth = new OAuthAuthorization(builder.build());
 			session.setAttribute("oauth", oauth);
 			String callbackURL = domain +"accessTokenBot";
 			session.setAttribute("requestToken", oauth.getOAuthRequestToken(callbackURL));
@@ -154,19 +150,17 @@ public class ViewIndex {
 			session.setMaxInactiveInterval(36000);
 			RequestToken requestToken = (RequestToken) session.getAttribute("requestToken"); //$NON-NLS-1$
 			AccessToken accessToken = new AccessToken(requestToken.getToken(), requestToken.getTokenSecret());
-			Consumer consumer = (Consumer) session.getAttribute("consumers");
 			OAuthAuthorization oauth = (OAuthAuthorization)session.getAttribute("oauth");
 			ConfigurationBuilder builder = new ConfigurationBuilder();
 			String verifier = request.getParameter("oauth_verifier");
 
 			builder.setOAuthAccessToken(accessToken.getToken());
 			builder.setOAuthAccessTokenSecret(accessToken.getTokenSecret());
-			builder.setOAuthConsumerKey(consumer.getConsumerKey());
-			builder.setOAuthConsumerSecret(consumer.getConsumerSecret());
+
 			accessToken = oauth.getOAuthAccessToken(verifier);
 			Twitter botTwitter = new TwitterFactory(builder.build()).getInstance(accessToken);
 			Twitter userTwitter = (Twitter)session.getAttribute("userTwitter");
-			appCron.addBot(userTwitter,botTwitter,consumer);
+			appCron.addBot(userTwitter,botTwitter);
 			KbmUser kbmUser = users.getUser(userTwitter);
 			session.setAttribute("kbmUser", kbmUser);
 			mav.setViewName("redirect:BotOAuth");
@@ -200,6 +194,7 @@ public class ViewIndex {
 		if(kbmUser != null)
 		{
 			Bot bot = kbmUser.getBot(botId);
+
 			if(bot != null)
 			{
 				bot.delete();

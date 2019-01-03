@@ -16,6 +16,8 @@ public class DataBotAccount {
 	@Column(name = "bot_id")
 	Long bot_id;
 	@Column
+	String bot_screen_name;
+	@Column
 	String Consumer_Key;
 	@Column
 	String Consumer_Secret;

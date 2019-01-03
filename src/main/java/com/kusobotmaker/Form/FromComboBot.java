@@ -1,15 +1,18 @@
 package com.kusobotmaker.Form;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 
 import com.kusobotmaker.Bot;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 @Data
-public class FromComboBot {
+@NoArgsConstructor
+public class FromComboBot implements Serializable  {
 
 	private Long botId;
 	private String botName;

@@ -37,6 +37,7 @@ a {
 								</a>
 								<div class="media-body">
 									<h5 th:text="*{botName}" class="mt-0">BOT名</h5>
+									<h5 th:text="*{botScreenName}" class="mt-0">(@screenname)</h5>
 									<a class="btn btn-outline-primary" th:href="|@{setting}/*{botId}|">設定</a>
 									<a class="btn btn-outline-primary" th:href="|@{mode}/*{botId}|">モード設定</a>
 									<a class="btn btn-outline-primary" th:href="|@{tweet}/*{botId}|">ツイート設定</a>
@@ -61,6 +62,7 @@ a {
 									    </div><!-- /.modal-content -->
 									  </div><!-- /.modal-dialog -->
 									</div><!-- /.modal -->
+									<p th:text="*{getConsumer_Key()}">consu</p>
 								</div>
 							</div>
 						</div>
@@ -75,15 +77,7 @@ a {
 			<div class="card">
 				<div class="card-header">BOTの追加</div>
 				<div class="card-body">
-					<form class="form form-group form-horizontal" action="requestTokenBot" th:action="@{requestTokenBot}" th:object="${consumers}" method="post">
-						<div class="form-group">
-							<label class="input-group-addon col-form-label" for="consumerKey">consumerKey</label>
-							<input class="form-control" type="text" th:field="*{consumerKey}" id="consumerKey" />
-						</div>
-						<div class="form-group">
-							<label class="input-group-addon col-form-label" for="consumerSecret">consumerSecret</label>
-							<input class="form-control" type="text" th:field="*{consumerSecret}" id="consumerSecret" />
-						</div>
+					<form class="form form-group form-horizontal" action="requestTokenBot" th:action="@{requestTokenBot}" method="post">
 						<div class="card-body">
 							<button type="submit" class="btn btn-social btn-twitter">
 								 <span class="fa fa-twitter"></span>ツイッターでログインしてBOTを追加

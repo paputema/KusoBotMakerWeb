@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 
 import com.kusobotmaker.Data.DataBotAccount;
 import com.kusobotmaker.Data.DataUserBot;
-import com.kusobotmaker.Form.Consumer;
 import com.kusobotmaker.repositories.DataUserBotKey;
 
 import twitter4j.Twitter;
@@ -35,6 +34,8 @@ import twitter4j.User;
 public class BotsScheduler {
 	static final Log LOG = LogFactory.getLog(BotsScheduler.class);
 	final private ExecutorService exec = Executors.newCachedThreadPool();
+
+
 	@Value("${kbm.debug}")
 	private boolean debug;
 	@Autowired
@@ -46,7 +47,6 @@ public class BotsScheduler {
 				public void run() {
 					for (DataBotAccount dataBotAccount : kusoBotMakerWebAppDataReps.dataBotAccountRepositories.findAll()) {
 					kusoBotMakerWebAppDataReps.putBot(dataBotAccount,kusoBotMakerWebAppDataReps);
-
 				}
 			}
 		});
@@ -64,7 +64,7 @@ public class BotsScheduler {
 		}
 	}
 
-	public User addBot(Twitter userTwitter, Twitter botTwitter, Consumer consumer) {
+	public User addBot(Twitter userTwitter, Twitter botTwitter) {
 		DataBotAccount dataBotAccount;
 		try {
 			DataBotAccount optional = kusoBotMakerWebAppDataReps.dataBotAccountRepositories.findOne(botTwitter.getId());
@@ -84,10 +84,11 @@ public class BotsScheduler {
 				dataBotAccount.setOwner_id(userTwitter.getId());
 			}
 			dataBotAccount.setBot_enable(true);
+			dataBotAccount.setBot_screen_name(userTwitter.getScreenName());
 			dataBotAccount.setAccess_Token(botTwitter.getOAuthAccessToken().getToken());
 			dataBotAccount.setAccess_Token_Secret(botTwitter.getOAuthAccessToken().getTokenSecret());
-			dataBotAccount.setConsumer_Key(consumer.getConsumerKey());
-			dataBotAccount.setConsumer_Secret(consumer.getConsumerSecret());
+			dataBotAccount.setConsumer_Key(botTwitter.getConfiguration().getOAuthConsumerKey());
+			dataBotAccount.setConsumer_Secret(botTwitter.getConfiguration().getOAuthConsumerSecret());
 			if(dataBotAccount.getOwner_id() == null)
 			{
 				dataBotAccount.setOwner_id(userTwitter.getId());
