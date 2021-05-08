@@ -8,6 +8,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -36,6 +37,9 @@ import com.kusobotmaker.Data.DataPosttable;
 import com.kusobotmaker.Data.DataSongText;
 
 import lombok.Getter;
+import lombok.Setter;
+import twitter4j.IDs;
+import twitter4j.Location;
 import twitter4j.Paging;
 import twitter4j.Query;
 import twitter4j.Query.ResultType;
@@ -45,6 +49,8 @@ import twitter4j.Relationship;
 import twitter4j.ResponseList;
 import twitter4j.Status;
 import twitter4j.StatusUpdate;
+import twitter4j.Trend;
+import twitter4j.Trends;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
@@ -54,12 +60,46 @@ import twitter4j.conf.ConfigurationBuilder;
 public class Bot{
 	static final Log LOG = LogFactory.getLog(Bot.class);
 	KusoBotMakerWebAppDataReps reps;
+
+	private List<String> nameList = new ArrayList<>();
+	private List<String> meishiList = new ArrayList<>();
+	private List<String> doushiList = new ArrayList<>();
+	private List<String> trendsList = new ArrayList<>();
+
+	private void updateTrendsList() throws TwitterException
+	{
+		List<String> newTrendsList = new ArrayList<>();
+
+			for(Location location : twitter.getAvailableTrends())
+			{
+				if(location.getCountryName().contains("Japan"))
+				{
+					//System.out.println(location.toString());
+					Trends trends = twitter.trends().getPlaceTrends(location.getWoeid());
+					for (Trend trend : trends.getTrends()) {
+						newTrendsList.add(trend.getName().replaceAll("#", ""));
+					}
+				}
+
+			}
+			trendsList = newTrendsList;
+
+	}
+	private String gettrends() throws TwitterException
+	{
+		if(trendsList.isEmpty())
+		{
+			updateTrendsList();
+		}
+		return trendsList.get(new Random().nextInt(trendsList.size()));
+	}
+
+
 	@PreDestroy
 	private void destroy()
 	{
 		shutdown(execOnstatus);
 		shutdown(execStatusPost);
-		shutdown(execGlobalSearchPost);
 	}
 	private void shutdown(ExecutorService exex)
 	{
@@ -77,7 +117,7 @@ public class Bot{
 	public void delete() {
 		reps.deleteBot(this);
 	}
-
+	@Getter
 	private Twitter twitter;
 	public String getConsumer_Key() {
 		return dataBotAccount.getConsumer_Key();
@@ -104,9 +144,8 @@ public class Bot{
 		reps.dataFollowRequestRepositories.saveAndFlush(this.followRequest);
 	}
 	private Date lastNomalPostTime = new Date(0);
-	final private  ExecutorService execOnstatus = Executors.newCachedThreadPool();
-	final private  ScheduledExecutorService execStatusPost = Executors.newSingleThreadScheduledExecutor();
-	final private  ExecutorService execGlobalSearchPost = Executors.newFixedThreadPool(1);
+	final private static ExecutorService execOnstatus = Executors.newCachedThreadPool();
+	final private static  ScheduledExecutorService execStatusPost = Executors.newSingleThreadScheduledExecutor();
 	private User botUser;
 
 	@Getter
@@ -159,8 +198,11 @@ public class Bot{
 	public void setOwnerId(Long ownerId) {
 		this.dataBotAccount.setOwner_id(ownerId);
 	}
+
+
 	private Set<Long> SetNoReplyList = new HashSet<>();
-	private User showUser(Long id) throws TwitterException
+
+	User showUser(Long id) throws TwitterException
 	{
 		User user = reps.getUser(id);
 		if(user == null)
@@ -182,8 +224,12 @@ public class Bot{
 		builder.setOAuthAccessTokenSecret(dataBotAccount.getAccess_Token_Secret());
 		this.twitter = new TwitterFactory(builder.build()).getInstance();
 		this.dataBotAccount = dataBotAccount;
-		this.followRequest = reps.dataFollowRequestRepositories.findOne(this.dataBotAccount.getBot_id());
-		if(followRequest == null)
+
+		Optional<DataFollowRequest> optional = reps.dataFollowRequestRepositories.findById(this.dataBotAccount.getBot_id());
+		if(optional.isPresent())
+		{
+			followRequest = optional.get();
+		}else
 		{
 			followRequest = new DataFollowRequest(dataBotAccount.getBot_id());
 			reps.dataFollowRequestRepositories.saveAndFlush(followRequest);
@@ -191,10 +237,11 @@ public class Bot{
 
 		try {
 			updateBotUser();
-			DataBotAccountLastId optLastId = reps.dataBotAccountLastIdRepositories.findOne(dataBotAccount.getBot_id());
-			if(optLastId != null)
+			updateTrendsList();
+			Optional<DataBotAccountLastId> optionalLastId = reps.dataBotAccountLastIdRepositories.findById(dataBotAccount.getBot_id());
+			if(optionalLastId.isPresent())
 			{
-				this.lastId = optLastId;
+				this.lastId = optionalLastId.get();
 			}else
 			{
 				this.lastId = new DataBotAccountLastId(dataBotAccount.getBot_id(),botUser.getStatus());
@@ -213,23 +260,28 @@ public class Bot{
 		}
 
 	}
-
+	private List<Long> repliedId = new ArrayList<>();
 	public void replyPost() {
 		if(!pause.isPause())
 		{
 			BotsScheduler.LOG.debug("TL取得開始:" + dataBotAccount.getBot_id());
-			getHomeTimeLine();
 			getMentionsTimeLine();
+			getHomeTimeLine();
 			getGlobalSearchTimeLine();
-			BotsScheduler.LOG.debug("TL取得終了:" + dataBotAccount.getBot_id());
+			repliedId.clear();
 			dataBotAccount.setBot_enable(true);
+			BotsScheduler.LOG.debug("TL取得終了:" + dataBotAccount.getBot_id());
 		}
 	}
-	private void onStatus(Status status)
+	private void onStatus(Status status) throws TwitterException
 	{
+		nameList.addAll(reps.getKeitaisoKaiseki().findName(status));
+		meishiList.addAll(reps.getKeitaisoKaiseki().findMeishi(status));
+		doushiList.addAll(reps.getKeitaisoKaiseki().findDoushi(status));
+
 		reps.addReplyHistory(status);
 		reps.putUser(status.getUser());
-		if	(pause.isPause() || SetNoReplyList.contains(status.getId()) || botId.equals(status.getUser().getId()))
+		if	(pause.isPause() || SetNoReplyList.contains(status.getId()) || botId.equals(status.getUser().getId()) || status.getHashtagEntities().length > 0)
 		{
 			return;
 		}
@@ -238,10 +290,11 @@ public class Bot{
 			//execStatusPost.submit(task);
 
 			DataPosttable posttable = reps.getReplyPost(dataBotAccount, status);
-			if(posttable != null)
+			if(posttable != null && !repliedId.contains(status.getId()))
 			{
 				ReplyThread replyThread = getListStatusUpdate(posttable,status);
 				execOnstatus.execute(replyThread);
+				repliedId.add(status.getId());
 			}
 		}
 	}
@@ -283,7 +336,7 @@ public class Bot{
 		return "@"+ status.getInReplyToScreenName();
 
 	}
-	private ReplyThread getListStatusUpdate(DataPosttable dataPosttable,Status status) {
+	private ReplyThread getListStatusUpdate(DataPosttable dataPosttable,Status status) throws TwitterException {
 		ReplyThread ret = null;
 		if(dataPosttable != null)
 		{
@@ -295,7 +348,7 @@ public class Bot{
 	class ReplyThread extends PostThread {
 		DataPosttable dataPosttable;
 		Status status;
-		ReplyThread(DataPosttable dataPosttable, Status status) {
+		ReplyThread(DataPosttable dataPosttable, Status status) throws TwitterException {
 			this.dataPosttable = dataPosttable;
 			this.status = status;
 			if (dataPosttable.isSong()) {
@@ -345,19 +398,81 @@ public class Bot{
 		}
 	}
 
+	private String getName (Status status,String defaultText)
+	{
+		KeitaisoKaiseki keitaisoKaiseki =reps.getKeitaisoKaiseki();
+		List<String> list = keitaisoKaiseki.findName(status);
+		if(list.isEmpty())
+		{
+			list = keitaisoKaiseki.findMeishi(status);
+			if(list.isEmpty())
+			{
+				list = nameList;
+				if(list.isEmpty());
+				{
+					list = meishiList;
+					if(list.isEmpty())
+					{
+						return defaultText;
+					}
+				}
+			}
+		}
+		return list.get(new Random(new Date().getTime()).nextInt(list.size()));
+	}
+	private String getDoushi (Status status,String defaultText)
+	{
+		KeitaisoKaiseki keitaisoKaiseki =reps.getKeitaisoKaiseki();
+		List<String> list = keitaisoKaiseki.findDoushi(status);
+		if(list.isEmpty())
+		{
+			list = doushiList;
+			if(list.isEmpty())
+			{
+				return defaultText;
+			}
+		}
+		return list.get(new Random(new Date().getTime()).nextInt(list.size()));
+	}
+
+	private String getName(String defaultText) {
+		List<String> list = nameList;
+		if (list.isEmpty())
+			;
+		{
+			list = meishiList;
+			if (list.isEmpty()) {
+				return defaultText;
+			}
+		}
+		return list.get(new Random().nextInt(list.size()));
+	}
+
+	private String getDoushi(String defaultText) {
+		List<String> list = doushiList;
+		if (list.isEmpty()) {
+			return defaultText;
+		}
+
+		return list.get(new Random(new Date().getTime()).nextInt(list.size()));
+	}
+
+
+
+
 
 	class UpdateStatus implements Callable<Status>
 	{
-		public UpdateStatus(Bot bot, String post,DataPosttable dataPosttable,Status status) {
+		public UpdateStatus(Bot bot, String post,DataPosttable dataPosttable,Status status) throws TwitterException {
 			super();
 			this.initReply(bot, post, dataPosttable, status,dataPosttable.getDelay());
 		}
 
-		public UpdateStatus(Bot bot,DataSongText songText,DataPosttable dataPosttable,Status status) {
+		public UpdateStatus(Bot bot,DataSongText songText,DataPosttable dataPosttable,Status status) throws TwitterException {
 			super();
 			this.initReply(bot, songText.getPostStr(), dataPosttable, status,songText.getDelay());
 		}
-		private void initReply(Bot bot, String post,DataPosttable dataPosttable,Status status,Long delay)
+		private void initReply(Bot bot, String post,DataPosttable dataPosttable,Status status,Long delay) throws TwitterException
 		{
 			this.status = status;
 			this.bot = bot;
@@ -367,6 +482,7 @@ public class Bot{
 			post = post.replaceAll("#reply_name#", getReplyNickname(status));
 			post = post.replaceAll("@", "あっとまーく");
 			post = post.replaceAll("#reply_at#", getReplyName(status));
+			post = post.replaceAll("#トレンド#", gettrends());
 			Pattern pattern = Pattern.compile(dataPosttable.getSearchStr());
 			Matcher Matcher = pattern.matcher(status.getText());
 			if (Matcher.find()) {
@@ -378,6 +494,32 @@ public class Bot{
 				}
 			}
 			post = post.replaceAll("#group_[0-9]+#", "");
+
+
+
+			pattern = Pattern.compile("#name_([^#]*)#");
+			Matcher = pattern.matcher(post);
+			if (Matcher.find()) {
+				int g = Matcher.groupCount();
+				for (int i = 0; i <= g; i++) {
+					if (Matcher.group(i) != null) {
+						post = post.replaceAll("#name_([^#]*)#", getName(status,Matcher.group(i)));
+					}
+				}
+			}
+			pattern = Pattern.compile("#doshi_([^#]*)#");
+			Matcher = pattern.matcher(post);
+			if (Matcher.find()) {
+				int g = Matcher.groupCount();
+				for (int i = 0; i <= g; i++) {
+					if (Matcher.group(i) != null) {
+						post = post.replaceAll("#doshi_([^#]*)#", getDoushi(status,Matcher.group(i)));
+					}
+				}
+			}
+
+
+
 			if(!dataPosttable.getAir())
 			{
 				post = "@" + status.getUser().getScreenName() + " " + post;
@@ -389,20 +531,20 @@ public class Bot{
 				statusUpdate.setInReplyToStatusId(status.getId());
 			}
 		}
-		public UpdateStatus(Bot bot, DataSongText songText, DataPosttable dataPosttable) {
+		public UpdateStatus(Bot bot, DataSongText songText, DataPosttable dataPosttable) throws TwitterException {
 			// TODO 自動生成されたコンストラクター・スタブ
 			super();
 			initNormal(bot,songText.getPostStr(),dataPosttable,songText.getDelay());
 
 		}
 
-		public UpdateStatus(Bot bot, String postText, DataPosttable dataPosttable) {
+		public UpdateStatus(Bot bot, String postText, DataPosttable dataPosttable) throws TwitterException {
 			// TODO 自動生成されたコンストラクター・スタブ
 			super();
 			initNormal(bot,postText,dataPosttable,dataPosttable.getDelay());
 		}
 
-		private void initNormal(Bot bot, String post,DataPosttable dataPosttable,Long delay)
+		private void initNormal(Bot bot, String post,DataPosttable dataPosttable,Long delay) throws TwitterException
 		{
 			this.status = null;
 			this.bot = bot;
@@ -412,7 +554,27 @@ public class Bot{
 			post = post.replaceAll("#reply_at#", "");
 			post = post.replaceAll("@", "あっとまーく");
 			post = post.replaceAll("#group_[0-9]+#", "");
-
+			post = post.replaceAll("#トレンド#", gettrends());
+			Pattern pattern = Pattern.compile("#name_([^#]*)#");
+			Matcher Matcher = pattern.matcher(post);
+			if (Matcher.find()) {
+				int g = Matcher.groupCount();
+				for (int i = 0; i <= g; i++) {
+					if (Matcher.group(i) != null) {
+						post = post.replaceAll("#name_([^#]*)#", getName(Matcher.group(i)));
+					}
+				}
+			}
+			pattern = Pattern.compile("#doshi_([^#]*)#");
+			Matcher = pattern.matcher(post);
+			if (Matcher.find()) {
+				int g = Matcher.groupCount();
+				for (int i = 0; i <= g; i++) {
+					if (Matcher.group(i) != null) {
+						post = post.replaceAll("#doshi_([^#]*)#", getDoushi(Matcher.group(i)));
+					}
+				}
+			}
 			if(post.contains("#user_name#"))
 			{
 				try {
@@ -420,7 +582,13 @@ public class Bot{
 
 					followrIds = twitter.getFollowersIDs(-1L).getIDs();
 					Random random = new Random(new Date().getTime());
-					long followrId = followrIds[random.nextInt(followrIds.length)];
+
+					int index = random.nextInt(followrIds.length);
+					long followrId = bot.getBotId();
+					if(index >= 0)
+					{
+						followrId = followrIds[index];
+					}
 					DataNickname  targetUserNickname = reps.dataNicknameRepositories.findTopByBotIdAndFriendsId(getBotId(), followrId);
 					User targetUser = showUser(followrId);
 					if(targetUserNickname == null)
@@ -473,7 +641,13 @@ public class Bot{
 	public void normalPost(){
 		if(!pause.isPause())
 		{
-			execOnstatus.submit(new normalPostThread());
+
+			try {
+				execOnstatus.submit(new normalPostThread());
+			} catch (TwitterException e) {
+				// TODO 自動生成された catch ブロック
+				onTwitterException(e);
+			}
 		}
 	}
 	public void onTwitterException(TwitterException e) {
@@ -481,6 +655,7 @@ public class Bot{
 		reps.dataLogtRepositories.saveAndFlush(new DataLog(dataBotAccount.getBot_id(), e));
 		switch (e.getErrorCode()) {
 		case -1:
+			onException(e);
 			break;
 		case 88:
 			rateLimitStatusHomeTimeLine = e.getRateLimitStatus() ;
@@ -543,13 +718,14 @@ public class Bot{
 	class normalPostThread extends PostThread
 	{
 
-		normalPostThread(){
+		normalPostThread() throws TwitterException{
 			Calendar calendar = Calendar.getInstance();
 			calendar.setTime(lastNomalPostTime);
 			calendar.add(Calendar.MINUTE,dataBotAccount.getNormal_post_interval().intValue());
 			LOG.debug(calendar.getTime() + "/" + new Date());
 			if(calendar.getTime().before(new Date()))
 			{
+				updateTrendsList();
 				DataPosttable dataPosttable = reps.getNormalPost(dataBotAccount);
 				if (dataPosttable != null) {
 					if(dataPosttable.isSong()){
@@ -568,6 +744,9 @@ public class Bot{
 				}
 				lastNomalPostTime = new Date();
 			}
+			doushiList.clear();
+			nameList.clear();
+			meishiList.clear();
 		}
 	}
 
@@ -575,6 +754,7 @@ public class Bot{
 
 
 	private RateLimitStatus rateLimitStatusHomeTimeLineGlobalSearch = null;
+
 	private void getGlobalSearchTimeLine()
 	{
 		for (DataGlobalSearch globalSearch : reps.globalSearchRepositories.findAllByBotIdOrderByLastUseAsc(this.botId)) {
@@ -585,22 +765,22 @@ public class Bot{
 				query.setQuery(globalSearch.getSearchstr() +  " AND exclude:retweets");
 				query.setResultType(ResultType.recent);
 				query.setCount(100);
-				if(globalSearch.getSinceid().compareTo((long) 0) > 0)
-				{
-					query.setSinceId(globalSearch.getSinceid());
-				}
+
+				query.setSinceId(globalSearch.getSinceid().longValue());
+
 				QueryResult queryResult = null;
 				do {
 					try {
 						if(queryResult != null)
 						{
-							query = queryResult.nextQuery();
+							//query = queryResult.nextQuery();
+							query.setSinceId(globalSearch.getSinceid().longValue());
 						}
 						queryResult = twitter.search(query);
 						rateLimitStatusHomeTimeLineGlobalSearch = queryResult.getRateLimitStatus();
 						for (Status status : queryResult.getTweets()) {
 							globalSearch.setSinceid(Long.max(status.getId(),globalSearch.getSinceid()));
-							execGlobalSearchPost.execute(new Runnable() {
+							execOnstatus.execute(new Runnable() {
 								@Override
 								public void run() {
 									if(getBotId().equals(status.getUser().getId()) == false) {
@@ -663,7 +843,7 @@ public class Bot{
 		if(checkRateLimit(rateLimitStatusHomeTimeLine))
 		{
 			Paging paging = new Paging(1,200);
-			ResponseList<Status> statusList = null ;
+			ResponseList<Status> statusList = null;
 			do {
 				try {
 					if(lastId.getSinceIdHomeTimeLine() > Long.valueOf(0L))
@@ -673,8 +853,8 @@ public class Bot{
 					statusList = twitter.getHomeTimeline(paging);
 					for (Status status : statusList) {
 						lastId.setSinceIdHomeTimeLine(Long.max(lastId.getSinceIdHomeTimeLine() , Long.valueOf(status.getId())));
-						onStatus(status);
 
+						onStatus(status);
 						BotsScheduler.LOG.debug(twitter.getScreenName()  + ":" + status.getUser().getName() + "「" + status.getText() + "」");
 
 					}
@@ -740,14 +920,18 @@ public class Bot{
 	private void setNickname(Status status)
 	{
 		Pattern p = Pattern.compile(followRequest.getNicknameRequestText());
-		String newNickname = p.matcher(status.getText()).group(followRequest.getNicknameGroupNum().intValue());
-		DataNickname dataNickname = reps.dataNicknameRepositories.findTopByBotIdAndFriendsId(botId, status.getUser().getId());
-		if(dataNickname == null)
+		Matcher matcher = p.matcher(status.getText());
+		if(matcher.find())
 		{
-			dataNickname = new DataNickname(botId,status.getUser());
+			String newNickname = matcher.group(followRequest.getNicknameGroupNum().intValue());
+			DataNickname dataNickname = reps.dataNicknameRepositories.findTopByBotIdAndFriendsId(botId, status.getUser().getId());
+			if(dataNickname == null)
+			{
+				dataNickname = new DataNickname(botId,status.getUser());
+			}
+			dataNickname.setNickName(newNickname);
+			reps.dataNicknameRepositories.saveAndFlush(dataNickname);
 		}
-		dataNickname.setNickName(newNickname);
-		reps.dataNicknameRepositories.saveAndFlush(dataNickname);
 	}
 
 	boolean checkRateLimit(RateLimitStatus rateLimitStatus) {
@@ -761,7 +945,6 @@ public class Bot{
 		}
 		return true;
 	}
-	@SuppressWarnings("unused")
 	private void SleepRateLimit(RateLimitStatus rateLimitStatus) {
 		if (rateLimitStatus != null && rateLimitStatus.getRemaining() <= 0) {
 			long time = rateLimitStatus.getSecondsUntilReset();
@@ -782,13 +965,13 @@ public class Bot{
 		if(mode != null && !reps.getDebug())
 		{
 			try {
-				getUserDescription();
-				String des = mode.getUserDescription() + followRequest.getUserDescription();
+				String des = mode.getUserDescription() + followRequest.getUserDescription() + getUserDescription();
 				if(des.length() > 160 )
 				{
 					des = mode.getUserDescription();
 				}
 				twitter.updateProfile(mode.getUserName(),mode.getUserUrl(),mode.getUserLocation() ,des);
+
 				File icon = mode.getIconToFile();
 				if(icon != null && icon.length() > 0)
 				{
@@ -818,7 +1001,7 @@ public class Bot{
 			User owner;
 			try {
 				owner = showUser(getOwnerId());
-				ret = "bot作者:@" + owner.getScreenName() + " " + reps.getUrl() ;
+				ret = "\r\nbot作者:@" + owner.getScreenName();
 			} catch (TwitterException e) {
 			}
 		}
@@ -828,7 +1011,10 @@ public class Bot{
 
 	private void onException(Exception e) {
 		// TODO 自動生成されたメソッド・スタブ
-		reps.dataLogtRepositories.saveAndFlush(new DataLog(dataBotAccount.getBot_id(), -1, e.getMessage()));
+		reps.dataLogtRepositories.saveAndFlush(new DataLog(dataBotAccount.getBot_id(), -1, e.getStackTrace().toString()));
+		e.printStackTrace();
+		LOG.error(e);
+
 
 	}
 	public void modeUpdateStop() {
@@ -886,5 +1072,39 @@ public class Bot{
 		}
 		return ret;
 	}
+
+
+	class FollowerIds extends ArrayList<Long>
+	{
+		@Getter@Setter
+		private boolean ret = false;
+
+	}
+	public	FollowerIds getFollowerIds()
+	{
+		FollowerIds ret = new FollowerIds();
+
+		try {
+			long cursor = IDs.START;
+			IDs ids;
+			do {
+				ids = twitter.getFollowersIDs(cursor);
+				cursor = ids.getNextCursor();
+				for(Long id : ids.getIDs())
+				{
+					ret.add(id);
+				}
+				SleepRateLimit(ids.getRateLimitStatus());
+			}
+			while(ids.hasNext());
+			ret.setRet(true);
+		} catch (TwitterException e) {
+			// TODO 自動生成された catch ブロック
+			onTwitterException(e);
+			ret.setRet(false);
+		}
+		return ret;
+	}
+
 
 }

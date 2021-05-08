@@ -2,6 +2,8 @@ package com.kusobotmaker.Form;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,10 +34,13 @@ public class FromSongTextSort{
 	}
 	public void delete(List<DataSongText> songTexts,Long id)
 	{
-		DataSongText deleteDataSongText = dataSongTextRepositories.findOne(id);
+		Optional<DataSongText> optional = dataSongTextRepositories.findById(id);
+
+
 		List<DataSongText> retSongTexts = new ArrayList<DataSongText>();
-		if (deleteDataSongText != null) {
-			dataSongTextRepositories.delete(id);
+		if (optional.isPresent()) {
+			DataSongText deleteDataSongText = optional.get();
+			dataSongTextRepositories.delete(deleteDataSongText);
 			for (DataSongText dataSongText : songTexts) {
 				if(!dataSongText.getID().equals(deleteDataSongText.getID()))
 				{
@@ -51,7 +56,7 @@ public class FromSongTextSort{
 	}
 	public void update(List<DataSongText> list)
 	{
-		dataSongTextRepositories.save(list);
+		dataSongTextRepositories.saveAll(list);
 		dataSongTextRepositories.flush();
 	}
 }

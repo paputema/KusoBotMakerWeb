@@ -2,13 +2,14 @@
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import org.apache.commons.logging.Log;
@@ -40,16 +41,14 @@ public class BotsScheduler {
 	private boolean debug;
 	@Autowired
 	KusoBotMakerWebAppDataReps kusoBotMakerWebAppDataReps;
-	@PostConstruct
-	@Scheduled(cron = "0 0 6,18 * * *")
+
+	@Scheduled(fixedDelay = 6 * 60 * 60 * 1000, initialDelay = 1 * 60 * 1000)
 	private void Construct() {
-		exec.submit(new Runnable() {
-				public void run() {
-					for (DataBotAccount dataBotAccount : kusoBotMakerWebAppDataReps.dataBotAccountRepositories.findAll()) {
-					kusoBotMakerWebAppDataReps.putBot(dataBotAccount,kusoBotMakerWebAppDataReps);
-				}
-			}
-		});
+
+		for (DataBotAccount dataBotAccount : kusoBotMakerWebAppDataReps.dataBotAccountRepositories.findAll()) {
+			kusoBotMakerWebAppDataReps.putBot(dataBotAccount, kusoBotMakerWebAppDataReps);
+		}
+
 	}
 	@PreDestroy
 	private void preDestroy()
@@ -67,11 +66,11 @@ public class BotsScheduler {
 	public User addBot(Twitter userTwitter, Twitter botTwitter) {
 		DataBotAccount dataBotAccount;
 		try {
-			DataBotAccount optional = kusoBotMakerWebAppDataReps.dataBotAccountRepositories.findOne(botTwitter.getId());
+			Optional<DataBotAccount> optional = kusoBotMakerWebAppDataReps.dataBotAccountRepositories.findById(botTwitter.getId());
 
-			if(optional != null)
+			if(optional.isPresent() == true)
 			{
-				dataBotAccount = optional;
+				dataBotAccount = optional.get();
 			}else
 			{
 				dataBotAccount = new DataBotAccount();
@@ -95,10 +94,9 @@ public class BotsScheduler {
 			}
 			kusoBotMakerWebAppDataReps.dataBotAccountRepositories.saveAndFlush(dataBotAccount);
 			kusoBotMakerWebAppDataReps.putBot(dataBotAccount,kusoBotMakerWebAppDataReps);
-			DataUserBot dataUserBot = kusoBotMakerWebAppDataReps.dataUserBotRepositories.findOne(new DataUserBotKey(userTwitter.getId(),botTwitter.getId()));
-			if(dataUserBot == null) {
-				dataUserBot = new DataUserBot(userTwitter.getId(),botTwitter.getId(), (dataBotAccount.getOwner_id() == userTwitter.getId()));
-				kusoBotMakerWebAppDataReps.dataUserBotRepositories.saveAndFlush(dataUserBot);
+			Optional<DataUserBot> dataUserBot = kusoBotMakerWebAppDataReps.dataUserBotRepositories.findById(new DataUserBotKey(userTwitter.getId(),botTwitter.getId()));
+			if(dataUserBot.isPresent() == false) {
+				kusoBotMakerWebAppDataReps.dataUserBotRepositories.saveAndFlush(new DataUserBot(userTwitter.getId(),botTwitter.getId(), (dataBotAccount.getOwner_id() == userTwitter.getId())));
 			}
 			return botTwitter.verifyCredentials();
 		} catch (IllegalStateException e) {
@@ -112,17 +110,17 @@ public class BotsScheduler {
 
 	}
 
-	@Scheduled(initialDelay = 15 * 60 * 1000, fixedDelay = 10 * 60 * 1000)
+	@Scheduled(initialDelay = 5 * 60 * 1000, fixedRate = 10 * 60 * 1000)
 	private void normalPostCron()
 	{
 		if(!debug)
 		{
 			LOG.info("通常ツイート開始");
-			List<Future<?>> list = new ArrayList<Future<?>>();
+			List<Future<Bot>> list = new ArrayList<Future<Bot>>();
 			for (final Bot bot : kusoBotMakerWebAppDataReps.getBots()) {
-				list.add(exec.submit(new Runnable() {
+				list.add(exec.submit(new Callable<Bot>() {
 					@Override
-					public void run() {
+					public Bot call() {
 						try {
 							if(bot.isPause() == false)
 							{
@@ -133,6 +131,7 @@ public class BotsScheduler {
 							// TODO 自動生成された catch ブロック
 							bot.onTwitterException(e);
 						}
+						return bot;
 
 					}
 				}));
@@ -149,28 +148,30 @@ public class BotsScheduler {
 			LOG.info("通常ツイート終了");
 		}
 	}
-	@Scheduled(initialDelay = 5 * 60 * 1000, fixedDelay =  1 * 1000)
+	@Scheduled(initialDelay = 15 * 60 * 1000, fixedRate =  1 * 60 * 1000)
 	private void replyPostCron()   {
 		if (!debug) {
 			LOG.info("リプライツイート開始");
-			List<Future<?>> list = new ArrayList<Future<?>>();
+			List<Future<Bot>> list = new ArrayList<Future<Bot>>();
 			for (final Bot bot : kusoBotMakerWebAppDataReps.getBots()) {
 					if(bot.isUser())
 					{
-						list.add(exec.submit(new Runnable() {
+						list.add(exec.submit(new Callable<Bot>() {
+
 
 							@Override
-							public void run() {
+							public Bot call() {
 								if(bot.isPause() == false)
 								{
 									bot.replyPost();
 								}
+								return bot;
 							}
 						}));
 					}
 
 			}
-			for (Future<?> future : list) {
+			for (Future<Bot> future : list) {
 				try {
 					future.get();
 				} catch (InterruptedException | ExecutionException e) {
@@ -182,35 +183,42 @@ public class BotsScheduler {
 			LOG.info("リプライツイート終了");
 		}
 	}
-	@Scheduled(cron = "0 0 0,12 * * *")
+	@Scheduled(cron = "0 0 0 * * *" , zone = "Asia/Tokyo")
 	private void modeUpdate()  {
 
-		if (!debug) {
-			LOG.info("モード変更開始");
-			List<Future<?>> list = new ArrayList<Future<?>>();
+		LOG.info("モード変更開始");
+		List<Future<?>> list = new ArrayList<Future<?>>();
 
-			for (final Bot bot : kusoBotMakerWebAppDataReps.getBots()) {
-				list.add(exec.submit(new Runnable() {
-					@Override
-					public void run() {
+		for (final Bot bot : kusoBotMakerWebAppDataReps.getBots()) {
+			list.add(exec.submit(new Runnable() {
+				@Override
+				public void run() {
 
-						bot.modeUpdate();
-					}
-
-				}));
-
-			}
-			for (Future<?> future : list) {
-				try {
-					future.get();
-				} catch (InterruptedException | ExecutionException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					bot.modeUpdate();
 				}
-			}
-			list = null;
-			System.gc();
-			LOG.info("モード変更終了");
+
+			}));
+
 		}
+		for (Future<?> future : list) {
+			try {
+				future.get();
+			} catch (InterruptedException | ExecutionException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		list = null;
+		System.gc();
+		LOG.info("モード変更終了");
 	}
+	@Scheduled(cron = "0 0 0 * * *" , zone = "Asia/Tokyo")
+	private void deleteOldLog()
+	{
+		LOG.info("ログ削除開始");
+		kusoBotMakerWebAppDataReps.dataLogtRepositories.deleteOld();
+		kusoBotMakerWebAppDataReps.dataLogtRepositories.flush();
+		LOG.info("ログ削除終了");
+	}
+
 }

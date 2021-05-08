@@ -11,7 +11,7 @@ public interface DataPosttableRepositories extends JpaRepository<DataPosttable, 
 	public List<DataPosttable> findAllByBotIdAndId(Long BotId,Long Id);
 	public default void deleteByBotIDAndTweetId(Long BotId,Long Id)
 	{
-		delete(findAllByBotIdAndId(BotId, Id));
+		deleteAll(findAllByBotIdAndId(BotId, Id));
 	}
 
 }

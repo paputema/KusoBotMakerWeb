@@ -111,6 +111,7 @@ public class ViewIndex {
 				mav.setViewName("redirect:BotOAuth");
 			}else
 			{
+				session.invalidate();
 				mav.setViewName("redirect:/");
 			}
 		} catch (TwitterException e) {

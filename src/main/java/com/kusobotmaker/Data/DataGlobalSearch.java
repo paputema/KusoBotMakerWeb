@@ -35,7 +35,7 @@ public class DataGlobalSearch {
 	@Column
 	private Boolean fav = false;
 	@Column
-	private Long sinceid = new Long(0);
+	private Long sinceid = new Long(-1);
 	@Column(name = "last_use")
-	private java.sql.Timestamp lastUse = new Timestamp(new Date().getTime());	
+	private java.sql.Timestamp lastUse = new Timestamp(new Date().getTime());
 }

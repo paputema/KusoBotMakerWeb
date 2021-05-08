@@ -17,9 +17,9 @@ import org.springframework.web.servlet.ModelAndView;
 
 import com.kusobotmaker.Bot;
 import com.kusobotmaker.KusoBotMakerWebAppDataReps;
+import com.kusobotmaker.KusoBotMakerWebAppUsers.KbmUser;
 import com.kusobotmaker.Data.DataPosttable;
 import com.kusobotmaker.Form.TweetsForm;
-import com.kusobotmaker.KusoBotMakerWebAppUsers.KbmUser;
 
 @Controller
 public class ViewTweet {
@@ -59,7 +59,7 @@ public class ViewTweet {
 		mav.setViewName("redirect:/tweet/" + session.getAttribute("botId"));
 		tweetsForm.getTweets().stream().filter((c) -> c.isSong() == false ).forEach((c) -> c.setSong_ID(-1L));
 
-		dataReps.dataPosttableRepositories.save(tweetsForm.getTweets());
+		dataReps.dataPosttableRepositories.saveAll(tweetsForm.getTweets());
 		mav.addObject("tweetsForm", tweetsForm);
 		return mav;
 	}

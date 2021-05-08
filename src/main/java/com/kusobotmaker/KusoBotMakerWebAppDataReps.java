@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 
+import org.mortbay.log.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import com.kusobotmaker.KusoBotMakerWebAppUsers.KbmUser;
 import com.kusobotmaker.Data.DataAccountMode;
 import com.kusobotmaker.Data.DataBotAccount;
+import com.kusobotmaker.Data.DataFollower;
 import com.kusobotmaker.Data.DataPosttable;
 import com.kusobotmaker.Data.DataSongList;
 import com.kusobotmaker.Form.FromSongTextSort;
@@ -31,6 +34,8 @@ import com.kusobotmaker.repositories.DataAccountModeRepositories;
 import com.kusobotmaker.repositories.DataBotAccountLastIdRepositories;
 import com.kusobotmaker.repositories.DataBotAccountRepositories;
 import com.kusobotmaker.repositories.DataFollowRequestRepositories;
+import com.kusobotmaker.repositories.DataFollowerHistoryRepositories;
+import com.kusobotmaker.repositories.DataFollowerRepositories;
 import com.kusobotmaker.repositories.DataGlobalSearchRepositories;
 import com.kusobotmaker.repositories.DataLogtRepositories;
 import com.kusobotmaker.repositories.DataNicknameRepositories;
@@ -39,6 +44,7 @@ import com.kusobotmaker.repositories.DataSongListRepositories;
 import com.kusobotmaker.repositories.DataSongTextRepositories;
 import com.kusobotmaker.repositories.DataUserBotRepositories;
 import com.kusobotmaker.repositories.DataUserRepositories;
+import com.kusobotmaker.repositories.DataYesterdayFollowerRepositories;
 
 import lombok.Getter;
 import twitter4j.Status;
@@ -72,10 +78,20 @@ public class KusoBotMakerWebAppDataReps {
 	@Getter
 	private Set<DataBotAccount> failedBotAccount = new HashSet<DataBotAccount>();
 	@Autowired
-	public DataFollowRequestRepositories dataFollowRequestRepositories;  
+	public DataFollowRequestRepositories dataFollowRequestRepositories;
 	@Autowired
 	public DataGlobalSearchRepositories globalSearchRepositories;
-	
+	@Autowired
+	@Getter
+	private KeitaisoKaiseki keitaisoKaiseki;
+	@Autowired
+	public DataFollowerRepositories dataFollowerRepositories;
+	@Autowired
+	public DataFollowerHistoryRepositories dataFollowerHistoryRepositories;
+	@Autowired
+	public DataYesterdayFollowerRepositories dataYesterdayFollowerRepositories;
+
+
 	@Value("${api.domain}")
 	@Getter
 	private String url;
@@ -148,9 +164,13 @@ public class KusoBotMakerWebAppDataReps {
 		//:mode_type2 w月第何曜日
 		query.setParameter("mode_type2", "w" + dateFormatModeType02.format(date));
 		List<DataAccountMode> dataAccountModes = query.getResultList();
+
 		if(dataAccountModes.isEmpty())
 		{
 			dataAccountModes = getBotModeNomal( dataBotAccount);
+		}else
+		{
+			Log.info(dataAccountModes.get(0).toString());
 		}
 		if(dataAccountModes.isEmpty())
 		{
@@ -296,7 +316,27 @@ public class KusoBotMakerWebAppDataReps {
 	}
 	public void deleteBot(Bot bot) {
 		bots.remove(bot.getBotId());
-		dataBotAccountRepositories.delete(bot.getBotId());
+		dataBotAccountRepositories.deleteById(bot.getBotId());
 		dataBotAccountRepositories.flush();
+	}
+
+
+	public void updateFollowe()
+	{
+		for(User user : users.values())
+		{
+			Optional<DataFollower> optional = dataFollowerRepositories.findById(user.getId());
+			DataFollower dataFollower;
+			if(optional.isPresent() == false)
+			{
+				dataFollower = new DataFollower(user.getId(), user);
+			}else
+			{
+				dataFollower = optional.get();
+				dataFollower.setFollower(user);
+			}
+			dataFollowerRepositories.save(dataFollower);
+		}
+		dataFollowerRepositories.flush();
 	}
 }

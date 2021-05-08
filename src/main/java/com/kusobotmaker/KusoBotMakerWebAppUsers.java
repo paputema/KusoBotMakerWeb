@@ -2,6 +2,7 @@ package com.kusobotmaker;
 
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -30,11 +31,11 @@ public class KusoBotMakerWebAppUsers {
 		private boolean verify;
 		private DataUser dataUser;
 		public KbmUser(Twitter twitter) throws TwitterException {
-			DataUser optional = kusoBotMakerWebAppDataReps.dataUserRepositories.findOne(twitter.getId()); 
-			
-			if(optional != null)
+			Optional<DataUser> optional = kusoBotMakerWebAppDataReps.dataUserRepositories.findById(twitter.getId());
+
+			if(optional.isPresent())
 			{
-				this.dataUser = optional;
+				this.dataUser = optional.get();
 			}
 			else
 			{
@@ -69,10 +70,10 @@ public class KusoBotMakerWebAppUsers {
 			return bots;
 		}
 		public Bot getBot(Long botId) {
-			DataUserBot dataUserBot = kusoBotMakerWebAppDataReps.dataUserBotRepositories.findOne(new DataUserBotKey(dataUser.getUserId(), botId));
-			if(dataUserBot != null)
+			Optional<DataUserBot> dataUserBot = kusoBotMakerWebAppDataReps.dataUserBotRepositories.findById(new DataUserBotKey(dataUser.getUserId(), botId));
+			if(dataUserBot.isPresent())
 			{
-				return kusoBotMakerWebAppDataReps.getBot(dataUserBot.getBotId());
+				return kusoBotMakerWebAppDataReps.getBot(dataUserBot.get().getBotId());
 			}
 			else
 			{

@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.kusobotmaker.KusoBotMakerWebAppUsers.KbmUser;
 import com.kusobotmaker.KusoBotMakerWebAppDataReps;
+import com.kusobotmaker.KusoBotMakerWebAppUsers.KbmUser;
 import com.kusobotmaker.Data.DataSongList;
 import com.kusobotmaker.Data.DataSongText;
 import com.kusobotmaker.Form.FromComboBot;
@@ -67,7 +67,7 @@ public class ViewSong {
 		SongEditForm songEditForm = (SongEditForm)session.getAttribute("songEditForm");
 		dataReps.fromSongTextSort.delete(songEditForm.getSongTexts(),id);
 		List<DataSongText> texts =  dataReps.dataSongTextRepositories.findBySongidOrderBySongsequenceAsc(songEditForm.getSongList().getSongID());
-		songEditForm = new SongEditForm(texts,dataReps.dataSongListRepositories.findOne(songEditForm.getSongList().getSongID()));
+		songEditForm = new SongEditForm(texts,dataReps.dataSongListRepositories.findById(songEditForm.getSongList().getSongID()).get());
 		session.setAttribute("songEditForm", songEditForm);
 
 		SongEditForm songAddForm = new SongEditForm(songEditForm.getSongList(),new DataSongText(songEditForm));
@@ -80,7 +80,7 @@ public class ViewSong {
 	public ModelAndView modeSelectForm(@Validated SongIdForm songIdForm, BindingResult result, Locale locale, ModelAndView mav) {
 		List<DataSongText> texts =  dataReps.dataSongTextRepositories.findBySongidOrderBySongsequenceAsc(songIdForm.getSongID());
 
-		SongEditForm songEditForm =  new SongEditForm(texts,dataReps.dataSongListRepositories.findOne(songIdForm.getSongID()));
+		SongEditForm songEditForm =  new SongEditForm(texts,dataReps.dataSongListRepositories.findById(songIdForm.getSongID()).get());
 		session.setAttribute("songEditForm", songEditForm);
 
 		SongEditForm songAddForm = new SongEditForm(songEditForm.getSongList(),new DataSongText(songEditForm));
